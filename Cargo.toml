@@ -1,0 +1,9 @@
+[workspace]
+members = ["crates/core", "crates/desktop"]
+default-members = ["crates/desktop"]
+resolver = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

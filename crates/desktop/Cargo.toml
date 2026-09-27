@@ -1,0 +1,9 @@
+[package]
+name = "mattmoss"
+version = "0.1.2"
+edition = "2021"
+description = "Cross-platform Mattmoss desktop animation"
+
+[dependencies]
+mattmoss-core = { path = "../core" }
+macroquad = { version = "=0.4.14", default-features = false }

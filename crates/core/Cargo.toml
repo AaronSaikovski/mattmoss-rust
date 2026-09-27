@@ -1,0 +1,5 @@
+[package]
+name = "mattmoss-core"
+version = "0.1.2"
+edition = "2021"
+description = "Portable reconstruction of the 1996 Mattmoss animation"
