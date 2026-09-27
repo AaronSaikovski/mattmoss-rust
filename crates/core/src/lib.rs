@@ -416,6 +416,65 @@ impl SmoothAnimation {
 #[cfg(test)]
 mod smooth_tests {
     use super::*;
+
+    #[test]
+    fn invalid_time_preserves_display_and_future_evolution() {
+        let mut actual = SmoothAnimation::new(1996);
+        let mut expected = SmoothAnimation::new(1996);
+        actual.advance(0.125);
+        expected.advance(0.125);
+        let before = expected.pixels().to_vec();
+        for seconds in [0.0, -0.125, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            actual.advance(seconds);
+            assert_eq!(actual.scene(), expected.scene());
+            assert_eq!(actual.pixels(), before, "invalid time: {seconds}");
+        }
+        // Invalid input must not poison timing budgets or the later fade.
+        for _ in 0..8 {
+            actual.advance(0.125);
+            expected.advance(0.125);
+            assert_eq!(actual.pixels(), expected.pixels());
+        }
+    }
+
+    #[test]
+    fn long_frame_matches_capped_time_in_both_rendering_modes() {
+        for interlaced in [false, true] {
+            let mut actual = SmoothAnimation::new(1996);
+            let mut expected = SmoothAnimation::new(1996);
+            actual.set_interlaced(interlaced);
+            expected.set_interlaced(interlaced);
+            // Exercise both progressive drawing and subsequent palette motion.
+            for _ in 0..20 {
+                actual.advance(10.0);
+                expected.advance(0.25);
+                assert_eq!(actual.scene(), expected.scene());
+                assert_eq!(actual.pixels(), expected.pixels());
+            }
+        }
+    }
+
+    #[test]
+    fn reapplying_interlace_mode_preserves_scene_and_transition() {
+        for interlaced in [false, true] {
+            let mut actual = SmoothAnimation::new(1996);
+            let mut expected = SmoothAnimation::new(1996);
+            actual.set_interlaced(interlaced);
+            expected.set_interlaced(interlaced);
+            actual.advance(0.125);
+            expected.advance(0.125);
+            let before = actual.pixels().to_vec();
+            actual.set_interlaced(interlaced);
+            assert_eq!(actual.scene(), expected.scene());
+            assert_eq!(actual.pixels(), before);
+            for _ in 0..8 {
+                actual.advance(0.125);
+                expected.advance(0.125);
+                assert_eq!(actual.pixels(), expected.pixels());
+            }
+        }
+    }
+
     #[test]
     fn startup_fades_and_pattern_change_preserves_displayed_frame() {
         let mut a = SmoothAnimation::new(1996);

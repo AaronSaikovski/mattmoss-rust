@@ -1,3 +1,11 @@
+# Cargo build output and generated headless renders
 /target/
 *.ppm
+
+# Rustfmt backups and editor swap files
+*.rs.bk
+*.swp
+*.swo
+
+# macOS metadata
 .DS_Store
