@@ -225,7 +225,7 @@ impl Animation {
             let level = self.envelope[(i + self.phase) % COLOURS];
             std::array::from_fn(|c| (self.colour[c] * level / 16384) as u8)
         });
-        for (i, pixel) in self.rgba.chunks_exact_mut(4).enumerate() {
+        for (i, pixel) in self.rgba.as_chunks_mut::<4>().0.iter_mut().enumerate() {
             let index = self.indices[i];
             let rgb = if index < 0 {
                 [0; 3]
@@ -258,7 +258,7 @@ impl Animation {
                 self.envelope[a] as f64 * (1.0 - t) + self.envelope[(a + 1) % COLOURS] as f64 * t;
             std::array::from_fn(|c| (colour[c] * level / 16384.0).clamp(0.0, 255.0).round() as u8)
         });
-        for (i, pixel) in self.rgba.chunks_exact_mut(4).enumerate() {
+        for (i, pixel) in self.rgba.as_chunks_mut::<4>().0.iter_mut().enumerate() {
             let index = self.indices[i];
             let rgb = if index < 0 {
                 [0; 3]
@@ -305,7 +305,7 @@ mod tests {
             while a.is_drawing() {
                 a.draw_pass();
             }
-            for row in a.indices.chunks_exact(WIDTH) {
+            for row in a.indices.as_chunks::<WIDTH>().0 {
                 assert!(row.iter().all(|&i| (0..COLOURS as i16).contains(&i)));
             }
             a.new_pattern();
@@ -343,7 +343,7 @@ impl SmoothAnimation {
             inner.draw_pass();
         }
         let mut black = vec![0; WIDTH * HEIGHT * 4];
-        for pixel in black.chunks_exact_mut(4) {
+        for pixel in black.as_chunks_mut::<4>().0 {
             pixel[3] = 255;
         }
         Self {
@@ -397,6 +397,9 @@ impl SmoothAnimation {
     pub fn pixels(&mut self) -> &[u8] {
         if self.inner.interlaced() {
             self.output.copy_from_slice(self.inner.pixels());
+        } else if self.elapsed >= 1.0 {
+            // Keep output current: the next transition snapshots this frame.
+            self.output.copy_from_slice(self.inner.pixels_smooth());
         } else {
             let t = self.elapsed.clamp(0.0, 1.0);
             let alpha = t * t * (3.0 - 2.0 * t);
@@ -416,6 +419,22 @@ impl SmoothAnimation {
 #[cfg(test)]
 mod smooth_tests {
     use super::*;
+
+    #[test]
+    fn completed_fade_tracks_palette_and_seeds_the_next_transition() {
+        let mut animation = SmoothAnimation::new(1996);
+        for _ in 0..4 {
+            animation.advance(0.25);
+        }
+        let first = animation.pixels().to_vec();
+        assert_eq!(first, animation.inner.pixels_smooth());
+        animation.advance(0.125);
+        let latest = animation.pixels().to_vec();
+        assert_ne!(first, latest);
+        assert_eq!(latest, animation.inner.pixels_smooth());
+        animation.new_pattern();
+        assert_eq!(latest, animation.pixels());
+    }
 
     #[test]
     fn invalid_time_preserves_display_and_future_evolution() {
@@ -478,12 +497,21 @@ mod smooth_tests {
     #[test]
     fn startup_fades_and_pattern_change_preserves_displayed_frame() {
         let mut a = SmoothAnimation::new(1996);
-        assert!(a.pixels().chunks_exact(4).all(|p| p[..3] == [0, 0, 0]));
+        assert!(a
+            .pixels()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .all(|p| p[..3] == [0, 0, 0]));
         for _ in 0..8 {
             a.advance(0.125);
         }
         let visible = a.pixels().to_vec();
-        assert!(visible.chunks_exact(4).any(|p| p[0] > 0 || p[1] > 0));
+        assert!(visible
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .any(|p| p[0] > 0 || p[1] > 0));
         assert_eq!(visible, a.pixels()); // Rendering alone never advances time.
         a.new_pattern();
         assert_eq!(visible, a.pixels()); // No jump on the first transition frame.

@@ -1,6 +1,9 @@
 //! Headless rendering: cargo run -p mattmoss-core --example render --release -- preview.ppm
 use mattmoss_core::{SmoothAnimation as Animation, HEIGHT, WIDTH};
-use std::{fs::File, io::Write};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
 fn main() -> std::io::Result<()> {
     let path = std::env::args()
         .nth(1)
@@ -10,11 +13,12 @@ fn main() -> std::io::Result<()> {
     for _ in 0..4 {
         animation.advance(0.25);
     }
-    let mut output = File::create(&path)?;
+    let mut output = BufWriter::new(File::create(&path)?);
     writeln!(output, "P6\n{} {}\n255", WIDTH, HEIGHT)?;
-    for pixel in animation.pixels().chunks_exact(4) {
+    for pixel in animation.pixels().as_chunks::<4>().0 {
         output.write_all(&pixel[..3])?;
     }
+    output.flush()?;
     println!("Rendered {path}");
     Ok(())
 }

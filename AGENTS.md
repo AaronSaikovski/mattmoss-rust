@@ -32,7 +32,7 @@ cargo run --release --locked -- --seed 1996
 cargo test --workspace --locked
 cargo test -p mattmoss-core --test original_x86 --locked
 cargo fmt --all --check
-cargo clippy --workspace --all-targets --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo run -p mattmoss-core --example render --release --locked -- preview.ppm
 cargo run --release --locked -- --seed 1996 --smoke-test
 rustup target add wasm32-unknown-unknown
@@ -40,7 +40,7 @@ python3 scripts/build-web.py
 python3 -m http.server 8080 --bind 127.0.0.1 --directory dist/web
 ```
 
-The workspace defaults to **desktop only**: use `--workspace` for the complete test suite. Clippy is a recommended local check, not an existing CI gate. The desktop smoke flag exits after 180 frames and still requires a working graphical display; use the core example for headless execution. The exporter writes PPM regardless of the output extension.
+The workspace defaults to **desktop only**: use `--workspace` for the complete test suite. Formatting and warning-free Clippy are required local and CI gates. The desktop smoke flag exits after 180 frames and still requires a working graphical display; use the core example for headless execution. The exporter writes PPM regardless of the output extension.
 
 ## Code Conventions & Common Patterns
 
@@ -55,7 +55,9 @@ The workspace defaults to **desktop only**: use `--workspace` for the complete t
 
 - `crates/core/src/lib.rs`: arithmetic and animation contracts; `crates/desktop/src/main.rs`: window entry point, CLI and controls.
 - `Cargo.toml`: workspace/default member and release profile; crate manifests: dependencies; `Cargo.lock`: reproducible dependency resolution.
-- `.github/workflows/build.yml`: stable-Rust tests and release builds on Linux, Windows and macOS, plus a static WASM-site artifact; no deployment, GUI, formatting, lint or coverage gate.
+- `.github/workflows/build.yml`: stable-Rust formatting/strict Clippy, tests and release builds on Linux, Windows and macOS, plus a static WASM-site artifact.
+- `.github/workflows/deploy-wasm.yml`: reusable artifact-only deployment, called by `build.yml` on `main` after both native and web jobs pass. Build/upload the Pages artifact once in the web job; do not rebuild or rerun tests in deployment. Keep Pages/OIDC write permissions confined to the deployment call/job.
+- `CHANGELOG.md`: record user-visible additions, fixes and tooling/deployment changes under `Unreleased`; do not invent release versions or dates.
 - Read `REVERSE_ENGINEERING.md` before changing field arithmetic, RNG, palette or historical timing: it records reconstruction evidence and intentional adaptations.
 - Read `README.md` for user-facing commands/controls and `VALIDATION.md` for historical verification limits. Historical pass claims are not fresh results. `preview.png` is a reference asset, not an automated golden-image fixture.
 
@@ -66,6 +68,8 @@ Use stable Rust and Cargo (edition 2021); no numeric MSRV or pinned toolchain is
 Native builds need a platform linker: Xcode command-line tools on macOS, MSVC/Visual Studio C++ tools on Windows, or a C linker on Linux. GUI execution also needs a desktop graphics environment (OpenGL support on Linux). Browser builds need the rustup `wasm32-unknown-unknown` target and Python 3; serve the entire generated directory, including the bundled logos, over HTTP(S), not `file://`. Read README's browser troubleshooting if Homebrew Rust shadows rustup or macOS `rust-lld` cannot find LLVM. No Node/Bun, bundler, wasm-bindgen or CDN is used. Unicorn was used to generate reference vectors but is not required to run tests.
 
 ## Testing & QA
+
+Before completing a change, run `cargo fmt --all --check` and `cargo clippy --workspace --all-targets --locked -- -D warnings`; both must pass. If formatting fails, run `cargo fmt --all`, then rerun the checks. Fix Clippy findings rather than weakening the CI gate or adding broad lint suppressions. Retain the narrow, documented `clippy::approx_constant` allowance for the historical `3.14` constant. Run `cargo test --workspace --locked` after Rust changes and the relevant runtime smoke check. Report environmental blockers explicitly instead of claiming an unrun check passed.
 
 Rust's built-in harness covers animation behavior in inline core tests and 1,000 golden comparisons in `crates/core/tests/original_x86.rs`. Add deterministic seed/time regressions beside the relevant tests for arithmetic, interlace, palette or transition changes. Preserve original reference outputs rather than regenerating them merely to accept changed behavior.
 
