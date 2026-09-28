@@ -1,21 +1,71 @@
-name: Desktop builds
-on: [push, pull_request, workflow_dispatch]
+name: Rust builds
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
-  build:
+  native:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --locked
-      - run: cargo build --release --locked
+      - name: Run workspace tests
+        run: cargo test --workspace --locked
+      - name: Build desktop release
+        run: cargo build --release --locked
+      - name: Preserve Unix executable permissions
+        if: runner.os != 'Windows'
+        run: tar -czf mattmoss.tar.gz -C target/release mattmoss
       - uses: actions/upload-artifact@v4
         with:
           name: mattmoss-${{ matrix.os }}
-          path: |
-            target/release/mattmoss
-            target/release/mattmoss.exe
+          path: ${{ runner.os == 'Windows' && 'target/release/mattmoss.exe' || 'mattmoss.tar.gz' }}
           if-no-files-found: error
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Lint Rust
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Build static WebAssembly site
+        run: python3 scripts/build-web.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mattmoss-web
+          path: dist/web/
+          if-no-files-found: error
+      - name: Upload checked site for Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/web/
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [native, web]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-wasm.yml

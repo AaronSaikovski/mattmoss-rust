@@ -194,6 +194,13 @@ name = "mattmoss-core"
 version = "0.1.2"
 
 [[package]]
+name = "mattmoss-web"
+version = "0.1.2"
+dependencies = [
+ "mattmoss-core",
+]
+
+[[package]]
 name = "miniquad"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"

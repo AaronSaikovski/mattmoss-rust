@@ -1,0 +1,11 @@
+[package]
+name = "mattmoss-web"
+version = "0.1.2"
+edition = "2021"
+description = "WebAssembly browser host for the Mattmoss renderer"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+mattmoss-core = { path = "../core" }

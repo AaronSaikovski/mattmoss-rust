@@ -1,8 +1,59 @@
-# Mattmoss — cross-platform Rust desktop recreation
+# Mattmoss — Rust desktop and WebAssembly recreation
 
-A working desktop animation reconstructed from the supplied 1996 **Mattmoss Screen Saver 1.0.0.1**, originally © HyperDyne Pty Ltd Australia. The renderer is written in Rust, with Macroquad handling the desktop window, input and texture display. It runs locally without a browser or network access after building.
+A working animation reconstructed from the supplied 1996 **Mattmoss Screen Saver 1.0.0.1**, originally © HyperDyne Pty Ltd Australia. The shared Rust renderer runs in a Macroquad desktop app or as WebAssembly in a browser, with a responsive landing page and interactive canvas.
 
-Targets: **macOS, Windows and Linux**. This is a standalone desktop app, not yet a registered `.saver` bundle or Windows `.scr` installer.
+Targets: **macOS, Windows, Linux and modern browsers**. The desktop app runs locally without a browser or network after building; it is not a registered `.saver` bundle or Windows `.scr` installer.
+
+## Run in a browser
+
+Install stable Rust with rustup and Python 3, then build and serve the static site:
+
+```sh
+rustup target add wasm32-unknown-unknown
+python3 scripts/build-web.py
+python3 -m http.server 8080 --bind 127.0.0.1 --directory dist/web
+```
+
+Open **http://localhost:8080**. Use HTTP rather than opening `index.html` directly. On Windows, `py -3` can replace `python3`.
+
+The landing page shows a real Rust-rendered still until you choose **Start the animation**. Controls provide pause/resume, new patterns, seed restart (0–4294967295), speed, historical interlacing and fullscreen where supported. With the player focused, use Space, N, R, I, F and +/−; typing in controls does not trigger shortcuts. Background tabs stop advancing, and changing to reduced motion pauses playback. Paused pattern/seed changes prepare a new still without autoplay.
+
+The homepage's “The maths behind Mattmoss” section explains weighted sources, field magnitudes, palette cycling and smoothstep transitions, with an expandable reference for the original wrapping-integer arithmetic.
+
+The build assembles the page, stylesheet, JavaScript, WebAssembly module and both logo images in `dist/web/`. Deploy the entire directory to any static HTTP(S) host, including under a subdirectory. No Node/Bun, bundler, CDN, backend, original executable or runtime network service is required; the browser fetches only the site's own assets. The Rust build workflow uploads a downloadable `mattmoss-web` artifact.
+
+### GitHub Pages deployment
+
+The repository already includes GitHub Pages deployment; no additional workflow is needed.
+
+1. Commit and push the updated project and workflow files to `main`.
+2. Open **Settings → Pages → Build and deployment** and select **GitHub Actions** as the source.
+3. Open **Actions → Rust builds → Run workflow**, select **main**, and click **Run workflow**. Subsequent pushes to `main` trigger this automatically.
+4. Wait for the native matrix, web build and deployment to succeed. Follow the URL shown by the **github-pages** environment in the workflow run.
+
+Expected URL without a custom domain: **https://aaronsaikovski.github.io/mattmoss-rust/**
+
+The **Rust builds** workflow (`.github/workflows/build.yml`) checks formatting, runs Clippy with warnings denied, tests/builds the native workspace on Linux, Windows and macOS, and builds the static site once using stable Rust with the `wasm32-unknown-unknown` target and Python 3.
+
+On `main`, the web job uploads `dist/web/` with `actions/upload-pages-artifact`. After both the native matrix and web job succeed, the workflow calls `.github/workflows/deploy-wasm.yml` to publish that artifact with `actions/deploy-pages`. This is a reusable deployment workflow: launch **Rust builds**, not **Deploy WASM to GitHub Pages**, for a manual run. Deployment performs no rebuild or duplicate tests.
+
+Pull requests and manual runs on other branches receive build checks and downloadable artifacts, but never upload a Pages artifact or deploy. Pages/OIDC write permissions are confined to the deployment call/job. If a check fails, deployment is skipped; inspect that job's log, fix the failure, and push again.
+
+All runtime asset paths are relative, so the repository subpath needs no bundler base-URL setting. Custom-domain configuration belongs in Pages settings; this repository does not supply a `CNAME`. The workflow configuration has been validated locally, but a successful GitHub-hosted deployment has not yet been verified.
+
+**Toolchain troubleshooting:** `cargo` and `rustc` must use the rustup toolchain where the WASM target was installed. If Homebrew Rust shadows it, prepend the matching binaries before building:
+
+```sh
+export PATH="$(dirname "$(rustup which rustc)"):$PATH"
+```
+
+If that macOS toolchain's `rust-lld` reports missing `@rpath/libLLVM.dylib`, the local build can use:
+
+```sh
+DYLD_LIBRARY_PATH="$(rustc --print sysroot)/lib" python3 scripts/build-web.py
+```
+
+The browser host (`crates/web`) exposes a small WASM API around `SmoothAnimation`; `web/app.js` supplies timing/input and draws the borrowed RGBA buffer using Canvas 2D. It refreshes typed views when WASM memory grows. Native and browser rendering share the same core, rather than reimplementing the maths in JavaScript.
 
 ## Run
 
@@ -27,6 +78,28 @@ cargo run --release --locked -- --seed 1996
 cargo run --release --locked -- --interlace
 ```
 
+## Download or publish a desktop release
+
+The **Desktop release** workflow (`.github/workflows/release-desktop.yml`) runs when a tag beginning with `v` is pushed. After formatting, strict Clippy and all platform tests/builds pass, it creates a [GitHub Release](https://github.com/AaronSaikovski/mattmoss-rust/releases) with generated release notes and these assets:
+
+| Platform | Asset |
+|---|---|
+| Linux x86-64 | `mattmoss-x86_64-unknown-linux-gnu.tar.gz` |
+| Windows x86-64 | `mattmoss-x86_64-pc-windows-msvc.zip` |
+| macOS Intel | `mattmoss-x86_64-apple-darwin.tar.gz` |
+| macOS Apple Silicon | `mattmoss-aarch64-apple-darwin.tar.gz` |
+
+Each archive contains the executable, README and changelog. Extract the archive for your OS/architecture, then launch `mattmoss` on macOS/Linux or `mattmoss.exe` on Windows. Unix archives preserve executable permissions. Linux releases are built on Ubuntu 22.04 and require a compatible system with a desktop display and OpenGL; they are not fully static universal Linux binaries. These are unsigned standalone executables, not installers or registered OS screensavers. macOS/Windows may display security warnings for unsigned downloads.
+
+To publish, first update the Cargo package versions and lockfile as appropriate, update the README, and move the completed changelog entries into a release section. Commit those changes and push a new version tag; for example, if `0.1.3` is the version being released:
+
+```sh
+git tag -a v0.1.3 -m "Mattmoss 0.1.3"
+git push origin v0.1.3
+```
+
+Tags containing a hyphen, such as `v0.1.3-rc.1`, are marked as prereleases. The workflow builds the tagged commit, not the latest `main`, and publishes only when all four platform builds and the quality checks succeed. It uses the automatic GitHub token, with `contents: write` limited to the publish job; no custom release secret is required. Tag releases do not trigger GitHub Pages deployment. Hosted builds/publication must be verified in the Actions run; configuring this workflow does not publish a release by itself.
+
 ## Controls
 
 | Key | Action |
@@ -48,22 +121,32 @@ Rendering uses a 640 × 480 surface, scaled with linear filtering and letterboxi
 
 - `crates/core`: dependency-free animation, original-style random generator, palette, wrapping integer field calculations, and the `SmoothAnimation` presentation layer.
 - `crates/desktop`: Macroquad desktop host and keyboard controls.
+- `crates/web`: dependency-free WebAssembly host around the shared core.
+- `web`: static landing page, browser controls and Canvas 2D presentation.
+- `scripts/build-web.py`: locked WASM build and static-site assembly.
 - `crates/core/tests/original_x86.rs`: 1,000 golden cases from emulating the original field routine, with host-provided square-root conversion.
 - `crates/core/examples/render.rs`: headless image export, useful for testing without a desktop.
-- `.github/workflows/build.yml`: native build/test jobs for Windows, macOS and Linux; produces executable artifacts when run in your GitHub repository.
+- `.github/workflows/build.yml`: Rust formatting/lint checks, native build/test jobs and a WASM site build; uploads desktop binaries and the static site.
+- `.github/workflows/deploy-wasm.yml`: reusable GitHub Pages deployment of the checked artifact; called by `build.yml` on `main`.
 - `REVERSE_ENGINEERING.md`: evidence, reconstructed formula and known differences.
 - `VALIDATION.md`: what was actually checked in the creation environment.
 
 ## Validate or render without a desktop
+
+Every new feature must include updates to both `README.md` (usage, setup and relevant limitations) and `CHANGELOG.md` (under `Unreleased`) in the same change. This is also a completion requirement in `AGENTS.md`.
 
 ```sh
 cargo test --workspace --locked
 cargo run -p mattmoss-core --example render --release --locked -- preview.ppm
 ```
 
-The PPM image can be opened with an image viewer that supports PPM or converted using an image editor. A sample PNG is included. A compiled Linux x86_64 executable is also included at `dist/linux-x86_64/mattmoss`; macOS and Windows users should build with Cargo on their own machine.
+The PPM image can be opened with an image viewer that supports PPM or converted using an image editor. A sample PNG is included. A compiled Linux x86_64 executable is also included at `dist/linux-x86_64/mattmoss`. For other platforms, download a matching tagged release asset when available or build with Cargo on your own machine.
 
 ## Attribution and fidelity
+
+The browser edition is presented by **WickedAILabs**, with credits to **Hyperdyne Systems**. These presentation credits are separate from the original program's historical copyright below.
+
+The locally bundled logos come from the official site: [light logo](https://wickedailabs.com/w1.png) (`web/wickedailabs-logo.png`) and [dark logo](https://wickedailabs.com/wickedailabslogo.png) (`web/wickedailabs-logo-dark.png`). The build copies them without hotlinking or fetching assets at build time.
 
 Original program: **Mattmoss Screen Saver**, © 1996 HyperDyne Pty Ltd Australia. This is a new reconstruction; it is not the recovered original source and does not imply permission to redistribute the original executable. The original binary is not bundled. This package preserves attribution and makes no claim to ownership of the original program.
 
