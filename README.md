@@ -24,12 +24,22 @@ The build assembles the page, stylesheet, JavaScript, WebAssembly module and bot
 
 ### GitHub Pages deployment
 
-In the repository's **Settings → Pages → Build and deployment**, select **GitHub Actions** as the source. The **Rust builds** workflow (`.github/workflows/build.yml`) runs on pushes to `main`, pull requests, or manually from the Actions tab. It checks formatting, runs Clippy with warnings denied, tests/builds the native workspace on Linux, Windows and macOS, and builds the static site once using stable Rust with the `wasm32-unknown-unknown` target and Python 3.
+The repository already includes GitHub Pages deployment; no additional workflow is needed.
 
-On `main`, the web job also uploads that same `dist/web/` output with `actions/upload-pages-artifact`. After both the native matrix and web job succeed, it calls the reusable `.github/workflows/deploy-wasm.yml` to publish the existing artifact with `actions/deploy-pages`; deployment performs no rebuild or duplicate tests. For manual deployment, run **Rust builds** with `main` selected. The deployment's `github-pages` environment exposes the resulting URL. Without a custom domain, the expected project URL is `https://aaronsaikovski.github.io/mattmoss-rust/`. All runtime asset paths are relative, so the repository subpath requires no bundler base-URL setting. Custom-domain configuration belongs in Pages settings; this repository does not supply a `CNAME`.
+1. Commit and push the updated project and workflow files to `main`.
+2. Open **Settings → Pages → Build and deployment** and select **GitHub Actions** as the source.
+3. Open **Actions → Rust builds → Run workflow**, select **main**, and click **Run workflow**. Subsequent pushes to `main` trigger this automatically.
+4. Wait for the native matrix, web build and deployment to succeed. Follow the URL shown by the **github-pages** environment in the workflow run.
 
-Pull requests and manual runs on other branches receive the build checks and downloadable artifacts, but never upload a Pages artifact or deploy. Pages write permissions are confined to the deployment call/job. These workflows use neither Go/Ebiten, `wasm_exec.js`, nor a separate `wasm-opt` stage; Cargo's release profile supplies the Rust optimisation settings.
+Expected URL without a custom domain: **https://aaronsaikovski.github.io/mattmoss-rust/**
 
+The **Rust builds** workflow (`.github/workflows/build.yml`) checks formatting, runs Clippy with warnings denied, tests/builds the native workspace on Linux, Windows and macOS, and builds the static site once using stable Rust with the `wasm32-unknown-unknown` target and Python 3.
+
+On `main`, the web job uploads `dist/web/` with `actions/upload-pages-artifact`. After both the native matrix and web job succeed, the workflow calls `.github/workflows/deploy-wasm.yml` to publish that artifact with `actions/deploy-pages`. This is a reusable deployment workflow: launch **Rust builds**, not **Deploy WASM to GitHub Pages**, for a manual run. Deployment performs no rebuild or duplicate tests.
+
+Pull requests and manual runs on other branches receive build checks and downloadable artifacts, but never upload a Pages artifact or deploy. Pages/OIDC write permissions are confined to the deployment call/job. If a check fails, deployment is skipped; inspect that job's log, fix the failure, and push again.
+
+All runtime asset paths are relative, so the repository subpath needs no bundler base-URL setting. Custom-domain configuration belongs in Pages settings; this repository does not supply a `CNAME`. The workflow configuration has been validated locally, but a successful GitHub-hosted deployment has not yet been verified.
 
 **Toolchain troubleshooting:** `cargo` and `rustc` must use the rustup toolchain where the WASM target was installed. If Homebrew Rust shadows it, prepend the matching binaries before building:
 

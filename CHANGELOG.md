@@ -11,6 +11,7 @@
 - Cross-platform static-site assembly through `scripts/build-web.py`.
 - Core regression tests for invalid time inputs, long-frame clamping, reapplying the current interlace mode, and completed-fade palette/transition continuity.
 - Repository guidelines requiring formatting, warning-free Clippy, relevant tests and runtime verification before completion.
+- Step-by-step GitHub Pages setup and manual deployment instructions, including the expected project URL, reusable-workflow entry point and deployment verification limits.
 
 ### Changed
 
