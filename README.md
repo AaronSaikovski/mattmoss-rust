@@ -78,6 +78,28 @@ cargo run --release --locked -- --seed 1996
 cargo run --release --locked -- --interlace
 ```
 
+## Download or publish a desktop release
+
+The **Desktop release** workflow (`.github/workflows/release-desktop.yml`) runs when a tag beginning with `v` is pushed. After formatting, strict Clippy and all platform tests/builds pass, it creates a [GitHub Release](https://github.com/AaronSaikovski/mattmoss-rust/releases) with generated release notes and these assets:
+
+| Platform | Asset |
+|---|---|
+| Linux x86-64 | `mattmoss-x86_64-unknown-linux-gnu.tar.gz` |
+| Windows x86-64 | `mattmoss-x86_64-pc-windows-msvc.zip` |
+| macOS Intel | `mattmoss-x86_64-apple-darwin.tar.gz` |
+| macOS Apple Silicon | `mattmoss-aarch64-apple-darwin.tar.gz` |
+
+Each archive contains the executable, README and changelog. Extract the archive for your OS/architecture, then launch `mattmoss` on macOS/Linux or `mattmoss.exe` on Windows. Unix archives preserve executable permissions. Linux releases are built on Ubuntu 22.04 and require a compatible system with a desktop display and OpenGL; they are not fully static universal Linux binaries. These are unsigned standalone executables, not installers or registered OS screensavers. macOS/Windows may display security warnings for unsigned downloads.
+
+To publish, first update the Cargo package versions and lockfile as appropriate, update the README, and move the completed changelog entries into a release section. Commit those changes and push a new version tag; for example, if `0.1.3` is the version being released:
+
+```sh
+git tag -a v0.1.3 -m "Mattmoss 0.1.3"
+git push origin v0.1.3
+```
+
+Tags containing a hyphen, such as `v0.1.3-rc.1`, are marked as prereleases. The workflow builds the tagged commit, not the latest `main`, and publishes only when all four platform builds and the quality checks succeed. It uses the automatic GitHub token, with `contents: write` limited to the publish job; no custom release secret is required. Tag releases do not trigger GitHub Pages deployment. Hosted builds/publication must be verified in the Actions run; configuring this workflow does not publish a release by itself.
+
 ## Controls
 
 | Key | Action |
@@ -111,12 +133,14 @@ Rendering uses a 640 × 480 surface, scaled with linear filtering and letterboxi
 
 ## Validate or render without a desktop
 
+Every new feature must include updates to both `README.md` (usage, setup and relevant limitations) and `CHANGELOG.md` (under `Unreleased`) in the same change. This is also a completion requirement in `AGENTS.md`.
+
 ```sh
 cargo test --workspace --locked
 cargo run -p mattmoss-core --example render --release --locked -- preview.ppm
 ```
 
-The PPM image can be opened with an image viewer that supports PPM or converted using an image editor. A sample PNG is included. A compiled Linux x86_64 executable is also included at `dist/linux-x86_64/mattmoss`; macOS and Windows users should build with Cargo on their own machine.
+The PPM image can be opened with an image viewer that supports PPM or converted using an image editor. A sample PNG is included. A compiled Linux x86_64 executable is also included at `dist/linux-x86_64/mattmoss`. For other platforms, download a matching tagged release asset when available or build with Cargo on your own machine.
 
 ## Attribution and fidelity
 

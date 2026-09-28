@@ -12,6 +12,8 @@
 - Core regression tests for invalid time inputs, long-frame clamping, reapplying the current interlace mode, and completed-fade palette/transition continuity.
 - Repository guidelines requiring formatting, warning-free Clippy, relevant tests and runtime verification before completion.
 - Step-by-step GitHub Pages setup and manual deployment instructions, including the expected project URL, reusable-workflow entry point and deployment verification limits.
+- Tag-triggered desktop releases for Linux x86-64, Windows x86-64, macOS Intel and macOS Apple Silicon, with executable/documentation archives, generated release notes and prerelease marking for hyphenated tags.
+- Mandatory README and changelog updates alongside every new feature, recorded in the repository guidelines.
 
 ### Changed
 

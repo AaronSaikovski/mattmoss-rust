@@ -57,6 +57,7 @@ The workspace defaults to **desktop only**: use `--workspace` for the complete t
 - `Cargo.toml`: workspace/default member and release profile; crate manifests: dependencies; `Cargo.lock`: reproducible dependency resolution.
 - `.github/workflows/build.yml`: stable-Rust formatting/strict Clippy, tests and release builds on Linux, Windows and macOS, plus a static WASM-site artifact.
 - `.github/workflows/deploy-wasm.yml`: reusable artifact-only deployment, called by `build.yml` on `main` after both native and web jobs pass. Build/upload the Pages artifact once in the web job; do not rebuild or rerun tests in deployment. Keep Pages/OIDC write permissions confined to the deployment call/job.
+- `.github/workflows/release-desktop.yml`: `v*` tags build/test Linux x86-64, Windows x86-64 and both macOS architectures, then publish archives only after all jobs pass. Keep release write permissions limited to the publish job; preserve Unix executable modes.
 - `CHANGELOG.md`: record user-visible additions, fixes and tooling/deployment changes under `Unreleased`; do not invent release versions or dates.
 - Read `REVERSE_ENGINEERING.md` before changing field arithmetic, RNG, palette or historical timing: it records reconstruction evidence and intentional adaptations.
 - Read `README.md` for user-facing commands/controls and `VALIDATION.md` for historical verification limits. Historical pass claims are not fresh results. `preview.png` is a reference asset, not an automated golden-image fixture.
@@ -70,6 +71,8 @@ Native builds need a platform linker: Xcode command-line tools on macOS, MSVC/Vi
 ## Testing & QA
 
 Before completing a change, run `cargo fmt --all --check` and `cargo clippy --workspace --all-targets --locked -- -D warnings`; both must pass. If formatting fails, run `cargo fmt --all`, then rerun the checks. Fix Clippy findings rather than weakening the CI gate or adding broad lint suppressions. Retain the narrow, documented `clippy::approx_constant` allowance for the historical `3.14` constant. Run `cargo test --workspace --locked` after Rust changes and the relevant runtime smoke check. Report environmental blockers explicitly instead of claiming an unrun check passed.
+
+Every new feature MUST update both `README.md` and `CHANGELOG.md` in the same change before completion. Document user-facing behaviour, commands/setup and relevant limitations in the README; add a concise entry under `Unreleased` in the changelog. Feature code, verification and both documentation updates form one deliverable; do not defer the documentation.
 
 Rust's built-in harness covers animation behavior in inline core tests and 1,000 golden comparisons in `crates/core/tests/original_x86.rs`. Add deterministic seed/time regressions beside the relevant tests for arithmetic, interlace, palette or transition changes. Preserve original reference outputs rather than regenerating them merely to accept changed behavior.
 
