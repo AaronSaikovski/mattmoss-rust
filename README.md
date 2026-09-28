@@ -6,6 +6,8 @@ Targets: **macOS, Windows, Linux and modern browsers**. The desktop app runs loc
 
 ## Run in a browser
 
+**[Play Mattmoss in your browser](https://aaronsaikovski.github.io/mattmoss-rust/)** — no installation required. Click **Start the animation** to play.
+
 Install stable Rust with rustup and Python 3, then build and serve the static site:
 
 ```sh
@@ -21,6 +23,10 @@ The landing page shows a real Rust-rendered still until you choose **Start the a
 The homepage's “The maths behind Mattmoss” section explains weighted sources, field magnitudes, palette cycling and smoothstep transitions, with an expandable reference for the original wrapping-integer arithmetic.
 
 The build assembles the page, stylesheet, JavaScript, WebAssembly module and both logo images in `dist/web/`. Deploy the entire directory to any static HTTP(S) host, including under a subdirectory. No Node/Bun, bundler, CDN, backend, original executable or runtime network service is required; the browser fetches only the site's own assets. The Rust build workflow uploads a downloadable `mattmoss-web` artifact.
+
+The static HTML includes a descriptive search title and description, a canonical GitHub Pages URL, Open Graph/Twitter sharing metadata and Schema.org `WebApplication` JSON-LD. Search terms describe the actual content: Mattmoss screensaver, 1996 Windows screensaver, Rust, WebAssembly, generative art and mathematical colour patterns. Google ignores `meta keywords`; structured data and descriptive content do not guarantee indexing, ranking or rich results.
+
+After deployment, verify the site in [Google Search Console](https://search.google.com/search-console/), inspect `https://aaronsaikovski.github.io/mattmoss-rust/` and request indexing. Google controls crawl timing and search snippets. If moving to another public host or a custom domain, update the absolute canonical, social URL/image and JSON-LD URLs in `web/index.html`; runtime asset paths remain relative.
 
 ### GitHub Pages deployment
 

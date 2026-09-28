@@ -8,6 +8,7 @@
 - Browser controls for playback, seed restart, new patterns, speed, interlacing and fullscreen, with keyboard/touch support, reduced-motion handling and failed-download recovery.
 - Official locally bundled WickedAILabs logos, Hyperdyne Systems presentation credits, original-program attribution and prominent GitHub repository links.
 - Homepage explanations of Mattmoss's origins, seed values and rendering mathematics.
+- Search-focused HTML title/description, canonical Pages URL, Open Graph/Twitter sharing metadata and WebApplication structured data with relevant search terms; documented indexing steps and limitations.
 - Cross-platform static-site assembly through `scripts/build-web.py`.
 - Core regression tests for invalid time inputs, long-frame clamping, reapplying the current interlace mode, and completed-fade palette/transition continuity.
 - Repository guidelines requiring formatting, warning-free Clippy, relevant tests and runtime verification before completion.
