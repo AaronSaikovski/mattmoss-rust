@@ -1,21 +1,35 @@
-name: Desktop builds
-on: [push, pull_request, workflow_dispatch]
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: build
+
+on:
+  push:
+    branches: ["main"]
+
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --locked
-      - run: cargo build --release --locked
-      - uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          name: mattmoss-${{ matrix.os }}
-          path: |
-            target/release/mattmoss
-            target/release/mattmoss.exe
-          if-no-files-found: error
+          go-version-file: go.mod
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev libgl-dev libxxf86vm-dev
+
+      - name: Install Go dependencies
+        run: go mod download
+
+      - name: Lint
+        run: |
+          go vet ./...
+          go fmt ./... && git diff --exit-code
+
+      - name: Build
+        run: go build -o bin/godaleks ./main.go

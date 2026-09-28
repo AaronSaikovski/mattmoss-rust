@@ -2,14 +2,15 @@
 
 ## Project Overview
 
-Rust reconstruction of the 1996 Mattmoss Windows screensaver, delivered as a standalone desktop animation for macOS, Windows and Linux. This is reconstructed code, not recovered original source or OS screensaver integration. Preserve the distinction between historical arithmetic fidelity and intentionally modern presentation.
+Rust reconstruction of the 1996 Mattmoss Windows screensaver, delivered as a standalone desktop animation for macOS, Windows and Linux and a static browser experience using WebAssembly. This is reconstructed code, not recovered original source or OS screensaver integration. Preserve the distinction between historical arithmetic fidelity and intentionally modern presentation.
 
 ## Architecture & Data Flow
 
 - `mattmoss-core` is dependency-free, synchronous CPU rendering. `field` implements the recovered integer kernel; `Animation` owns seeded RNG, scatter traversal, palette/timer state and reusable pixel buffers. `SmoothAnimation` wraps it with palette interpolation and scene crossfades.
 - Desktop imports **`SmoothAnimation as Animation`**. Inputs/elapsed time → animation state → borrowed 640×480 RGBA8 buffer → reusable Macroquad image/texture → letterboxed window. Keep clock, keyboard, window and GPU concerns in desktop.
+- `crates/web` exposes a single `SmoothAnimation` through a small WASM ABI; `web/app.js` owns browser controls/timing and copies RGBA into Canvas 2D. Refresh pixel views after memory growth or `init`; the core owns all rendering maths. Browser playback is opt-in and suspends in hidden tabs.
 - The headless example consumes the same smooth renderer and writes RGB P6 PPM without a display. Default full-image mode prepares complete fields; interlaced mode retains progressive historical drawing.
-- State is owned by animation structs and desktop-local variables. Inject a seed through `new(seed)` and simulation time through `advance(seconds)`; no service container or global application state. Async is limited to Macroquad's `next_frame().await`, not an async core or Tokio runtime.
+- Core state is owned by animation structs; desktop state stays local, while the WASM bridge retains one thread-local animation instance. Inject a seed through `new(seed)` and simulation time through `advance(seconds)`; no service container. Rust async is limited to Macroquad's `next_frame().await`; browser loading uses promises and playback uses requestAnimationFrame.
 
 ## Key Directories
 
@@ -17,6 +18,8 @@ Rust reconstruction of the 1996 Mattmoss Windows screensaver, delivered as a sta
 - `crates/core/tests/`: embedded original-x86 golden vectors; inspect relevant cases rather than loading the entire large fixture file.
 - `crates/core/examples/`: headless export utility, not a separate scripting framework.
 - `crates/desktop/src/`: native CLI, controls and rendering loop.
+- `crates/web/src/`: Rust WASM bridge; `web/`: vanilla HTML/CSS/ES-module landing page and player.
+- `scripts/build-web.py`: Python standard-library build/assembly into ignored `dist/web/`.
 - `.github/workflows/`: native build/test matrix and executable artifact uploads.
 
 ## Development Commands
@@ -32,6 +35,9 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked
 cargo run -p mattmoss-core --example render --release --locked -- preview.ppm
 cargo run --release --locked -- --seed 1996 --smoke-test
+rustup target add wasm32-unknown-unknown
+python3 scripts/build-web.py
+python3 -m http.server 8080 --bind 127.0.0.1 --directory dist/web
 ```
 
 The workspace defaults to **desktop only**: use `--workspace` for the complete test suite. Clippy is a recommended local check, not an existing CI gate. The desktop smoke flag exits after 180 frames and still requires a working graphical display; use the core example for headless execution. The exporter writes PPM regardless of the output extension.
@@ -49,7 +55,7 @@ The workspace defaults to **desktop only**: use `--workspace` for the complete t
 
 - `crates/core/src/lib.rs`: arithmetic and animation contracts; `crates/desktop/src/main.rs`: window entry point, CLI and controls.
 - `Cargo.toml`: workspace/default member and release profile; crate manifests: dependencies; `Cargo.lock`: reproducible dependency resolution.
-- `.github/workflows/build.yml`: stable-Rust tests and release builds on Linux, Windows and macOS; no GUI, formatting, lint or coverage gate.
+- `.github/workflows/build.yml`: stable-Rust tests and release builds on Linux, Windows and macOS, plus a static WASM-site artifact; no deployment, GUI, formatting, lint or coverage gate.
 - Read `REVERSE_ENGINEERING.md` before changing field arithmetic, RNG, palette or historical timing: it records reconstruction evidence and intentional adaptations.
 - Read `README.md` for user-facing commands/controls and `VALIDATION.md` for historical verification limits. Historical pass claims are not fresh results. `preview.png` is a reference asset, not an automated golden-image fixture.
 
@@ -57,7 +63,7 @@ The workspace defaults to **desktop only**: use `--workspace` for the complete t
 
 Use stable Rust and Cargo (edition 2021); no numeric MSRV or pinned toolchain is declared. Keep `--locked` for normal builds/tests and retain the committed lockfile. Desktop pins Macroquad exactly to `0.4.14` with default features disabled; preserve that policy unless intentionally updating dependencies.
 
-Native builds need a platform linker: Xcode command-line tools on macOS, MSVC/Visual Studio C++ tools on Windows, or a C linker on Linux. GUI execution also needs a desktop graphics environment (OpenGL support on Linux). Python/Unicorn were used to generate reference vectors but are not required to run the checked-in tests. There is no Node/Bun toolchain or standalone script runner.
+Native builds need a platform linker: Xcode command-line tools on macOS, MSVC/Visual Studio C++ tools on Windows, or a C linker on Linux. GUI execution also needs a desktop graphics environment (OpenGL support on Linux). Browser builds need the rustup `wasm32-unknown-unknown` target and Python 3; serve the entire generated directory, including the bundled logos, over HTTP(S), not `file://`. Read README's browser troubleshooting if Homebrew Rust shadows rustup or macOS `rust-lld` cannot find LLVM. No Node/Bun, bundler, wasm-bindgen or CDN is used. Unicorn was used to generate reference vectors but is not required to run tests.
 
 ## Testing & QA
 
@@ -66,5 +72,7 @@ Rust's built-in harness covers animation behavior in inline core tests and 1,000
 Timing/mode regressions also cover invalid time preserving future evolution, long-frame clamping in both rendering modes, and reapplying the current interlace mode without restarting the scene or fade.
 
 Run workspace tests, then exercise the changed surface: headless export for renderer changes; an actual desktop session for input, fullscreen or window behavior. Smoke mode does not verify keyboard interactions, and headless output does not prove native UI correctness. No numerical coverage threshold or coverage tool is configured.
+
+For browser changes, rebuild the site and exercise actual WASM animation, pause, seed restart, interlace, speed and fullscreen in a browser. Check mobile layout, reduced motion and failed-download retry; native tests do not cover the JavaScript/WASM boundary.
 
 Golden vectors validate original integer arithmetic with a substituted floating-point tail, not complete Windows-runtime fidelity. Host sine/square-root behavior can vary across architectures; do not promise cross-platform bit-identical pixels or treat the CI matrix as proof of interactive runtime verification.

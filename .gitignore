@@ -1,6 +1,7 @@
 # Cargo build output and generated headless renders
 /target/
 *.ppm
+/dist/web/
 
 # Rustfmt backups and editor swap files
 *.rs.bk
